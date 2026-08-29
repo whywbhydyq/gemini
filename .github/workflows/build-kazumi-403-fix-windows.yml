@@ -31,11 +31,11 @@ jobs:
         shell: pwsh
         run: python .github/scripts/patch_kazumi.py
 
-      - name: Set up Flutter
+      - name: Set up Flutter 3.47.2
         uses: subosito/flutter-action@v2.16.0
         with:
           channel: stable
-          flutter-version-file: Kazumi/pubspec.yaml
+          flutter-version: '3.47.2'
           cache: true
 
       - name: Enable Windows desktop
