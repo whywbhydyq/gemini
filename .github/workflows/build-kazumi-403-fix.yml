@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - .github/workflows/build-kazumi-403-fix.yml
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
