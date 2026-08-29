@@ -1,0 +1,139 @@
+name: Build Kazumi 403 fix for Windows
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-kazumi-403-fix-windows.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout build harness
+        uses: actions/checkout@v4
+        with:
+          ref: kazumi-403-manual-verify-build
+
+      - name: Checkout Kazumi 2.3.0
+        uses: actions/checkout@v4
+        with:
+          repository: Predidit/Kazumi
+          ref: '2.3.0'
+          path: Kazumi
+
+      - name: Apply 403 manual verification patch
+        shell: pwsh
+        run: python .github/scripts/patch_kazumi.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.16.0
+        with:
+          channel: stable
+          flutter-version-file: Kazumi/pubspec.yaml
+          cache: true
+
+      - name: Enable Windows desktop
+        shell: pwsh
+        run: flutter config --enable-windows-desktop
+
+      - name: Get Flutter dependencies
+        working-directory: Kazumi
+        shell: pwsh
+        run: flutter pub get
+
+      - name: Analyze patched files
+        working-directory: Kazumi
+        shell: pwsh
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/services/plugin/rule_engine.dart lib/pages/info/source_captcha_flow.dart lib/pages/plugin_editor/plugin_test_page.dart
+
+      - name: Build Windows x64
+        working-directory: Kazumi
+        shell: pwsh
+        run: |
+          flutter build windows --release `
+            --build-name=2.3.0-403fix `
+            --build-number=20301 `
+            --dart-define=DANDANAPI_APPID= `
+            --dart-define=DANDANAPI_KEY= `
+            --dart-define=KAZUMI_APPID= `
+            --dart-define=KAZUMI_KEY=
+
+      - name: Package portable ZIP
+        shell: pwsh
+        run: |
+          $release = "Kazumi/build/windows/x64/runner/Release"
+          if (!(Test-Path "$release/kazumi.exe")) { throw "kazumi.exe not found" }
+          Compress-Archive -Path "$release/*" -DestinationPath "Kazumi_windows_2.3.0_403fix_x64_portable.zip" -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          $release = (Resolve-Path "Kazumi/build/windows/x64/runner/Release").Path
+          $iss = @"
+          [Setup]
+          AppId={{C735A22D-779F-47C5-906B-403F1E230001}
+          AppName=Kazumi 403 Fix
+          AppVersion=2.3.0.40301
+          AppPublisher=Kazumi custom build
+          DefaultDirName={localappdata}\Programs\Kazumi403Fix
+          DefaultGroupName=Kazumi 403 Fix
+          UninstallDisplayIcon={app}\kazumi.exe
+          OutputDir=.
+          OutputBaseFilename=Kazumi_windows_2.3.0_403fix_x64_Setup
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=lowest
+          CloseApplications=yes
+
+          [Files]
+          Source: "$release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\Kazumi 403 Fix"; Filename: "{app}\kazumi.exe"
+          Name: "{autodesktop}\Kazumi 403 Fix"; Filename: "{app}\kazumi.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+
+          [Run]
+          Filename: "{app}\kazumi.exe"; Description: "Launch Kazumi 403 Fix"; Flags: nowait postinstall skipifsilent
+          "@
+          $iss | Set-Content -Path "kazumi_403fix.iss" -Encoding UTF8
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          & $iscc "kazumi_403fix.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
+
+      - name: Compute SHA-256
+        shell: pwsh
+        run: |
+          $installer = "Kazumi_windows_2.3.0_403fix_x64_Setup.exe"
+          $portable = "Kazumi_windows_2.3.0_403fix_x64_portable.zip"
+          (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower() + "  " + $installer | Set-Content "$installer.sha256"
+          (Get-FileHash $portable -Algorithm SHA256).Hash.ToLower() + "  " + $portable | Set-Content "$portable.sha256"
+          Get-Content "$installer.sha256"
+          Get-Content "$portable.sha256"
+
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kazumi_windows_2.3.0_403fix_x64
+          path: |
+            Kazumi_windows_2.3.0_403fix_x64_Setup.exe
+            Kazumi_windows_2.3.0_403fix_x64_Setup.exe.sha256
+            Kazumi_windows_2.3.0_403fix_x64_portable.zip
+            Kazumi_windows_2.3.0_403fix_x64_portable.zip.sha256
+          retention-days: 7
