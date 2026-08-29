@@ -52,6 +52,17 @@ jobs:
         shell: pwsh
         run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/services/plugin/rule_engine.dart lib/pages/info/source_captcha_flow.dart lib/pages/plugin_editor/plugin_test_page.dart
 
+      - name: Patch VS 2026 coroutine compatibility
+        shell: pwsh
+        run: |
+          $cmake = "Kazumi/windows/CMakeLists.txt"
+          $text = Get-Content $cmake -Raw
+          $marker = "project(kazumi LANGUAGES CXX)"
+          if (-not $text.Contains($marker)) { throw "CMake project marker not found" }
+          $replacement = $marker + "`r`nadd_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+          $text = $text.Replace($marker, $replacement)
+          Set-Content -Path $cmake -Value $text -Encoding UTF8
+
       - name: Build Windows x64
         working-directory: Kazumi
         shell: pwsh
