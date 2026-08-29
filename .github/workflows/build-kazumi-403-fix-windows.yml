@@ -29,7 +29,9 @@ jobs:
 
       - name: Apply 403 manual verification patch
         shell: pwsh
-        run: python .github/scripts/patch_kazumi.py
+        run: |
+          python .github/scripts/patch_kazumi.py
+          python .github/scripts/patch_kazumi_native_webview_ua.py
 
       - name: Set up Flutter 3.47.2
         uses: subosito/flutter-action@v2.16.0
@@ -68,8 +70,8 @@ jobs:
         shell: pwsh
         run: |
           flutter build windows --release `
-            --build-name=2.3.0-403fix `
-            --build-number=20301 `
+            --build-name=2.3.0-403fix2 `
+            --build-number=20302 `
             --dart-define=DANDANAPI_APPID= `
             --dart-define=DANDANAPI_KEY= `
             --dart-define=KAZUMI_APPID= `
@@ -80,7 +82,7 @@ jobs:
         run: |
           $release = "Kazumi/build/windows/x64/runner/Release"
           if (!(Test-Path "$release/kazumi.exe")) { throw "kazumi.exe not found" }
-          Compress-Archive -Path "$release/*" -DestinationPath "Kazumi_windows_2.3.0_403fix_x64_portable.zip" -Force
+          Compress-Archive -Path "$release/*" -DestinationPath "Kazumi_windows_2.3.0_403fix2_x64_portable.zip" -Force
 
       - name: Install Inno Setup
         shell: pwsh
@@ -92,15 +94,15 @@ jobs:
           $release = (Resolve-Path "Kazumi/build/windows/x64/runner/Release").Path
           $iss = @"
           [Setup]
-          AppId={{C735A22D-779F-47C5-906B-403F1E230001}
-          AppName=Kazumi 403 Fix
-          AppVersion=2.3.0.40301
+          AppId={{C735A22D-779F-47C5-906B-403F1E230002}
+          AppName=Kazumi 403 Fix 2
+          AppVersion=2.3.0.40302
           AppPublisher=Kazumi custom build
-          DefaultDirName={localappdata}\Programs\Kazumi403Fix
-          DefaultGroupName=Kazumi 403 Fix
+          DefaultDirName={localappdata}\Programs\Kazumi403Fix2
+          DefaultGroupName=Kazumi 403 Fix 2
           UninstallDisplayIcon={app}\kazumi.exe
           OutputDir=.
-          OutputBaseFilename=Kazumi_windows_2.3.0_403fix_x64_Setup
+          OutputBaseFilename=Kazumi_windows_2.3.0_403fix2_x64_Setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -113,26 +115,26 @@ jobs:
           Source: "$release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
           [Icons]
-          Name: "{group}\Kazumi 403 Fix"; Filename: "{app}\kazumi.exe"
-          Name: "{autodesktop}\Kazumi 403 Fix"; Filename: "{app}\kazumi.exe"; Tasks: desktopicon
+          Name: "{group}\Kazumi 403 Fix 2"; Filename: "{app}\kazumi.exe"
+          Name: "{autodesktop}\Kazumi 403 Fix 2"; Filename: "{app}\kazumi.exe"; Tasks: desktopicon
 
           [Tasks]
           Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
           [Run]
-          Filename: "{app}\kazumi.exe"; Description: "Launch Kazumi 403 Fix"; Flags: nowait postinstall skipifsilent
+          Filename: "{app}\kazumi.exe"; Description: "Launch Kazumi 403 Fix 2"; Flags: nowait postinstall skipifsilent
           "@
-          $iss | Set-Content -Path "kazumi_403fix.iss" -Encoding UTF8
+          $iss | Set-Content -Path "kazumi_403fix2.iss" -Encoding UTF8
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) { $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
-          & $iscc "kazumi_403fix.iss"
+          & $iscc "kazumi_403fix2.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
 
       - name: Compute SHA-256
         shell: pwsh
         run: |
-          $installer = "Kazumi_windows_2.3.0_403fix_x64_Setup.exe"
-          $portable = "Kazumi_windows_2.3.0_403fix_x64_portable.zip"
+          $installer = "Kazumi_windows_2.3.0_403fix2_x64_Setup.exe"
+          $portable = "Kazumi_windows_2.3.0_403fix2_x64_portable.zip"
           (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower() + "  " + $installer | Set-Content "$installer.sha256"
           (Get-FileHash $portable -Algorithm SHA256).Hash.ToLower() + "  " + $portable | Set-Content "$portable.sha256"
           Get-Content "$installer.sha256"
@@ -141,10 +143,10 @@ jobs:
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
-          name: Kazumi_windows_2.3.0_403fix_x64
+          name: Kazumi_windows_2.3.0_403fix2_x64
           path: |
-            Kazumi_windows_2.3.0_403fix_x64_Setup.exe
-            Kazumi_windows_2.3.0_403fix_x64_Setup.exe.sha256
-            Kazumi_windows_2.3.0_403fix_x64_portable.zip
-            Kazumi_windows_2.3.0_403fix_x64_portable.zip.sha256
+            Kazumi_windows_2.3.0_403fix2_x64_Setup.exe
+            Kazumi_windows_2.3.0_403fix2_x64_Setup.exe.sha256
+            Kazumi_windows_2.3.0_403fix2_x64_portable.zip
+            Kazumi_windows_2.3.0_403fix2_x64_portable.zip.sha256
           retention-days: 7
