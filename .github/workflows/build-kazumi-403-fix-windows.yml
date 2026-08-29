@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout build harness
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/services/plugin/rule_engine.dart lib/pages/info/source_captcha_flow.dart lib/pages/plugin_editor/plugin_test_page.dart
 
-      - name: Patch VS 2026 coroutine compatibility
+      - name: Patch coroutine compatibility
         shell: pwsh
         run: |
           $cmake = "Kazumi/windows/CMakeLists.txt"
